@@ -127,16 +127,26 @@ export class SchedulerService {
    * （最近アクセスされた店舗を優先的にスクレイピング）
    */
   private getStoreCodesFromCache(): string[] {
-    // キャッシュキーから店舗コードを抽出
-    const stats = cacheService.getStats();
-    const keys = stats.keys;
+    try {
+      // キャッシュキーから店舗コードを抽出
+      const stats = cacheService.getStats();
+      const keys = stats.keys as number | string[];
 
-    // vacancy: プレフィックスがあるキーから店舗コードを抽出
-    const storeCodes = keys
-      .filter((key: string) => key.startsWith('vacancy:'))
-      .map((key: string) => key.replace('vacancy:', ''));
+      // keysが配列でない場合は空配列を返す
+      if (!Array.isArray(keys)) {
+        return [];
+      }
 
-    return Array.from(new Set(storeCodes)); // 重複を除去
+      // vacancy: プレフィックスがあるキーから店舗コードを抽出
+      const storeCodes = keys
+        .filter((key: string) => key.startsWith('vacancy:'))
+        .map((key: string) => key.replace('vacancy:', ''));
+
+      return Array.from(new Set(storeCodes)); // 重複を除去
+    } catch (error) {
+      console.error('Error getting store codes from cache:', error);
+      return [];
+    }
   }
 
   /**
