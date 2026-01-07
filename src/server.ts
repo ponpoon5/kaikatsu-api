@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import apiRoutes from './routes/api.routes';
 import { scraperService } from './services/scraper.service';
+import { schedulerService } from './services/scheduler.service';
 
 // 環境変数を読み込み
 dotenv.config();
@@ -89,12 +90,14 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 // グレースフルシャットダウン
 process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
+  schedulerService.stop();
   await scraperService.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
+  schedulerService.stop();
   await scraperService.close();
   process.exit(0);
 });
@@ -112,6 +115,9 @@ app.listen(PORT, () => {
   `);
   console.log(`Server is running on http://localhost:${PORT}`);
   console.log(`API endpoint: http://localhost:${PORT}/api/vacancy/:storeCode`);
+
+  // 定期スクレイピングスケジューラーを開始
+  schedulerService.start();
 });
 
 export default app;
