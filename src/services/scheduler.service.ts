@@ -23,14 +23,20 @@ export class SchedulerService {
   start(): void {
     console.log('🕐 Scheduler starting...');
 
+    // 起動時に一度実行（キャッシュを warm up）
+    console.log('🚀 Running initial scraping...');
+    this.executeScraping().catch(err => {
+      console.error('Initial scraping failed:', err);
+    });
+
     // 次の XX:04 のタイミングを計算
     const nextScheduledTime = this.getNextScheduledTime();
     const delay = nextScheduledTime.getTime() - Date.now();
 
-    console.log(`⏰ Next scraping at: ${nextScheduledTime.toLocaleTimeString('ja-JP')}`);
+    console.log(`⏰ Next scheduled scraping at: ${nextScheduledTime.toLocaleTimeString('ja-JP')}`);
     console.log(`⏱️  Starting in ${Math.floor(delay / 1000)}s`);
 
-    // 最初の実行をスケジュール
+    // 定期実行をスケジュール
     setTimeout(() => {
       this.executeScraping();
 
@@ -48,27 +54,35 @@ export class SchedulerService {
    */
   private getNextScheduledTime(): Date {
     const now = new Date();
+    const currentMinute = now.getMinutes();
+    const currentSecond = now.getSeconds();
+
+    // 現在の10分スロットを計算 (0-9, 10-19, 20-29, ...)
+    const currentSlot = Math.floor(currentMinute / 10);
+
+    // 次のスロットのXX:04を計算
+    let nextSlot = currentSlot;
+
+    // 現在時刻がXX:04以降の場合、次のスロットに進む
+    if (currentMinute % 10 >= 4 || (currentMinute % 10 === 4 && currentSecond > 0)) {
+      nextSlot = currentSlot + 1;
+    }
+
+    // 次のスロットの分を計算
+    let nextMinute = nextSlot * 10 + 4;
+
     const next = new Date(now);
 
-    // 現在の分を10分単位に丸める
-    const currentMinute = now.getMinutes();
-    const nextSlot = Math.floor(currentMinute / 10) * 10 + 10; // 次の10分スロット
-
-    if (nextSlot >= 60) {
+    if (nextMinute >= 60) {
       // 次の時間に繰り越し
       next.setHours(next.getHours() + 1);
       next.setMinutes(4);
     } else {
-      next.setMinutes(nextSlot + 4); // XX:04に設定
+      next.setMinutes(nextMinute);
     }
 
     next.setSeconds(0);
     next.setMilliseconds(0);
-
-    // もし計算した時刻が過去なら10分追加
-    if (next.getTime() <= now.getTime()) {
-      next.setMinutes(next.getMinutes() + 10);
-    }
 
     return next;
   }
